@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>記帳專題註冊</title>
+    {% include 'jscstemplate.html' %}
+
+
+</head>
+<body>
+    <fieldset id="app">
+        <legend>會員註冊</legend>
+        <table>
+            <tr>
+                <td>UserID</td>
+                <td><input v-model:value="users.userID" type="text" id="inputID" class="form-control" placeholder="UserID" required></td>
+            </tr>
+            <tr>
+                <td>UserName</td>
+                <td><input v-model:value="users.userName" type="text" id="inputName" class="form-control" placeholder="UserName" required></td>
+            </tr>
+            <tr>
+                <td>PassWord</td>
+                <td><input v-model:value="users.passWord" type="password" id="inputpassWord" class="form-control" placeholder="PassWord" required></td>
+            </tr>
+            <tr>
+                <td>Email</td>
+                <td><input v-model:value="users.email" type="email" class="form-control" placeholder="Email" required></td>
+            </tr>
+
+            <tr>
+                <td></td>
+                <td>
+                    <button v-on:click="registerHandler" id="btnRegister">Register</button>
+                    &emsp;|&emsp;
+                    <button v-on:click="loginHandler" id="btnLogin">Login?</button>
+                </td>
+            </tr>
+            
+        </table>
+
+    </fieldset>
+
+    <script>
+        //設定資料模組 綁定畫面用的
+        var dataModel={
+            users:{userID:'',userName:'',passWord:'',email:''},
+            message:''
+        }
+
+        //事件程序或者功能模組
+        var functions={
+            registerHandler:function(){
+                //非同步呼喚後端服務 傳送一份json進行註冊
+                console.log('click....')
+                //使用axios post method進行呼喚後端服務
+                let addURL='../../api/v1/users/add'
+                let myHeader={"Content-Type":"application/json"}
+                //正式提出請求 採用非同步
+                axios.post(url=addURL,data=app.users,headers=myHeader)
+                .then(
+                    //Lambda Expression寫法
+                    (response)=>{
+                        console.log(response);
+                        let msg=response.data;
+                        //取出訊息 渲染畫面
+                        app.message=data.msg;
+                         
+                        console.log('註冊成功');  
+                        Swal.fire({
+                            title: "Accounting",
+                            text: "註冊成功!",
+                            icon: "success"
+                        }).then(
+                            (result)=>{
+                                setTimeout("location.href='../login/form'",100);
+                            }
+                        )                 
+                    }
+                    
+                )  //後端處理成功之後 status 2xx
+                .catch(
+                    (error)=>{
+                        console.log(error);
+                        app.message=error.response.data.msg;
+
+                        console.log('註冊失敗'); 
+                        Swal.fire({
+                            title: "Accounting",
+                            text: "註冊失敗!",
+                            icon: "error"
+                        }); 
+                    }
+                ) //status 4xx or 5xx
+            },
+            loginHandler:function(){
+                setTimeout("location.href='../login/form'",100);
+            }
+        }
+
+        var app=new Vue(
+            //建構初始化 不是參數 是採用物件模組
+            {
+                delimiters:['{[',']}'],
+                //設定資料模組
+                data:dataModel,
+                methods:functions
+            }
+        );
+        app.$mount('#app');
+    </script>
+
+</body>
+</html>

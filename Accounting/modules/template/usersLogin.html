@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>記帳專題登入</title>
+    {% include 'jscstemplate.html' %}
+</head>
+<body>
+    <!--  登入頁面 或跟註冊同一頁? -->
+    <fieldset id="app">
+        <legend>會員登入</legend>
+        <table>
+            <tr>
+                <td>UserID</td>
+                <td><input v-model:value="users.userID" type="text" id="inputID" class="form-control" placeholder="UserID" required></td>
+            </tr>
+            
+            <tr>
+                <td>PassWord</td>
+                <td><input v-model:value="users.passWord" type="password" id="inputpassWord" class="form-control" placeholder="PassWord" required></td>
+            </tr>
+            
+            <tr>
+                <td></td>
+                <td>
+                    <button @click="LoginHandler">Log in</button>
+                    &emsp;|&emsp;
+                    <button @click="RegisterHandler">Register?</button>
+                </td>
+            </tr>
+            
+        </table>
+
+    </fieldset>
+
+
+    <script>
+        var dataModel={
+            users:{userID:'',passWord:''}
+        }
+        var functions={
+            // // 讀取 Cookie
+            // getCookie:function(name){
+            //     var match = document.cookie.match(new RegExp(name + '=([^;]+)'));
+            //     console.log('登入帳號為'+match ? match[1] : null);
+            // },
+
+            LoginHandler:function(e){
+                //使用axios post method進行呼喚後端服務
+                let addURL='../../api/v1/users/qry'
+                let myHeader={"Content-Type":"application/json"}
+                //正式提出請求 採用非同步
+                axios.post(url=addURL,data=app.users,headers=myHeader)
+                .then(
+                    //Lambda Expression寫法
+                    (response)=>{
+                        console.log(response);
+                        let msg=response.data.message;
+                        // app.message=data.msg;
+                        //取出訊息 渲染畫面
+                        console.log('登入成功');  
+                        Swal.fire({
+                            title: "登入成功!",
+                            // text: msg,
+                            icon: "success",
+                            confirmButtonText:'確認'
+                        }).then(
+                            (result)=>{
+                                setTimeout("location.href='../index/form'",100);
+                            }
+                        )
+                        
+                                       
+                    }
+                    
+                )  //後端處理成功之後 status 2xx
+                .catch(
+                    (error)=>{
+                        console.log(error);
+                        console.log('登入失敗!');
+                        let msg=error.response.data.message; 
+                        Swal.fire({
+                            title: "登入失敗!",
+                            text: msg,
+                            icon: "error"
+                        }); 
+                    }
+                ); //status 4xx or 5xx
+            },
+            RegisterHandler:function(){
+                setTimeout("location.href='../register/form'",100);
+            }
+        }
+
+        var app=new Vue(
+            //建構初始化 不是參數 是採用物件模組
+            {
+                delimiters:['{[',']}'],
+                //設定資料模組
+                data:dataModel,
+                methods:functions
+            }
+        );
+        app.$mount('#app');
+    </script>
+</body>
+</html>

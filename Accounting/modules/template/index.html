@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首頁</title>
+    {% include 'jscstemplate.html' %}
+</head>
+<body>
+    <header style="position:sticky; top:0;">
+        <h2>記帳應用</h2> <button onclick="liffLogOut()" class="btn btn-danger" style="float:right;padding: 10px; width: 100px; height: 40px;">登出</button>
+    
+        <nav>
+            <ul>
+            <li><a href="#accounting">記帳區塊</a></li>
+            <li><a href="#transactions">記帳編輯</a></li>
+            <li><a href="#account">帳戶編輯</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <section>
+        <fieldset id="app">
+            <!-- 圖表 -->
+            <div class="wrap">
+                <div class="left" id="ChartDiv1"><h3>支出</h3><canvas id="Chart1"></canvas>總支出 : {[app.chartData[2]]}</div>
+                <div class="right" id="ChartDiv2"><h3>收入</h3><canvas id="Chart2"></canvas>總收入 : {[app.chartData[3]]}</div>               
+            </div>
+
+            <div class="wrap">
+            <div class="left" id="ChartDiv3"><h3>每月開銷</h3><canvas id="Chart3"></canvas></div>
+            <div class="right" id="ChartDiv4"><h3>個帳戶餘額</h3><canvas id="Chart4"></canvas></div>
+            </div>
+
+            <!-- 記帳畫面 -->
+            <h3>記帳區 <span><button class="btn btn-primary" v-on:click='btnQRcodeNewLog'>QR Code新增</button></span></h3>               
+            <div id="accounting">
+                <h5>帳戶<span style="background-color: rgb(221, 255, 0);">  {[nowAccount]}</span></h5>
+                <div v-for="(item,index) in result" class="form-check-inline">
+                    <button class="btn btn-secondary btn-sm" name="account" v-bind:accessKey="index" v-on:click='btnChoAccount'>{[item.AccountName]}</button>
+                </div>
+                <br>
+                <br>
+
+                <h5>類別</h5>
+                <div>
+                {% for key, value in category.items() %}
+                    <input type="radio" class="btn-check" v-model:value="log.CategoryID" name="category" value="{{key}}" id="category.{{key}}" autocomplete="off" checked>
+                    <label class="btn btn-secondary btn-sm" for="category.{{key}}">{{value}}</label>
+                    <!-- <li>{{ key }}: {{ value }}</li> -->
+                {% endfor %}
+                </div>
+                <br>
+
+                <div>
+                    <h5>支出 or 收入</h5>
+                    <input type="radio" class="btn-check" v-model:value="log.Type" name="type" value="0" id="pay" autocomplete="off" checked>
+                    <label class="btn btn-secondary btn-sm" for="pay">支出</label>
+
+                    <input type="radio" class="btn-check" v-model:value="log.Type" name="type" value="1" id="income" autocomplete="off" checked>
+                    <label class="btn btn-secondary btn-sm" for="income">收入</label>
+                </div>
+                <br>
+
+                <div>
+                    <h5>金額</h5>
+                    <div><input v-model:value="log.Amount" id="amount" type="number"></div>
+                    <br>
+                    <h5>帳戶描述</h5>
+                    <div>
+                        <textarea v-model:value="log.Description" id="description" rows="2" cols="30" required></textarea>
+                    </div>
+                </div>
+                <br>
+                <button class="btn btn-primary" v-on:click='btnNewLog'>確認</button>
+                <!-- <div>{[log.AccountID]} {[log.CategoryID]} {[log.Amount]} {[log.Description]} {[log.Type]}</div> -->
+            </div><hr>                 
+
+            <!-- 記帳查詢畫面 -->
+            <div id="transactions">
+                <h3>記帳編輯 </h3>
+                
+                <div v-show="isShow" style="height: 600px;overflow: auto;">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <th>選項</th>
+                            <th>帳戶</th>
+                            <th>類別</th>
+                            <th>收入</th>
+                            <th>金額</th>
+                            <th>描述</th>
+                            <th>建立時間</th>
+                        </thead>
+                        <tbody>
+                            <!--使用vue foreach 查詢結果-->
+                            <tr v-for="(item,index) in Result">
+                                <td>
+                                    <button class="btn btn-primary" v-bind:accessKey="index" v-on:click='btnTranEditHandler'>編輯</button>
+                                    <button class="btn btn-danger" v-bind:accessKey="index" v-on:click="btnTranDelete">刪除</button>
+                                </td>
+                                <td>{[item.AccountName]}</td>
+                                <td>{[item.CategoryName]}</td>
+                                <td>{[item.Type]}</td>
+                                <td>{[item.Amount]}</td>
+                                <td>{[item.Description]}</td>
+                                <td>{[item.Date]}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <hr>
+
+                <!--編輯對話盒區塊-->
+                <div id="TranEditDialog" title="記帳資料修改" style="display: none;">
+                    <div>
+                        <label>記帳帳戶</label><br>
+                        <div v-for="(item,index) in result" class="form-check-inline">
+                            <button class="btn btn-secondary btn-sm" v-on:click="setValue(item.AccountID, 'txtTranAccountID');setValue(item.AccountName, 'txtTranAccountName');">{[item.AccountName]}</button>
+                        </div>  
+                        <input type="text" id="txtTranAccountName" autocomplete="off" disabled>
+                        <input type="text"  id="txtTranAccountID" autocomplete="off" disabled>
+                        
+                        <br>
+                        <label>記帳類別</label>
+                        <div>
+                            <select id="txtTranCurrency">
+                                {% for key, value in category.items() %}
+                                    <option value="{{key}}">{{value}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <label>記帳金額</label>
+                        <div><input id="txtTranAmount" type="number"></div>
+                        <label>記帳描述</label>
+                        <div><textarea id="txtTranDescription" name="mytext" rows="4" cols="30" required></textarea></div>
+                        <label>收入 or 支出</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="txtTranType">
+                            <label class="form-check-label" for="txtTranType">是收入</label>
+                        </div>                    
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 帳戶查詢畫面 -->
+            <div id="account">
+                <h3>帳戶編輯 <span><button class="btn btn-primary" v-on:click='btnNewHandler'>新增帳戶</button></span></h3>
+                
+                <div v-show="isShow" style="height: 600px;overflow: auto;">
+                    <table class="table table-hover table-striped">
+                        <thead>
+                            <th>選項</th>
+                            <th>名稱</th>
+                            <th>餘額</th>
+                            <th>貨幣</th>
+                            <th>描述</th>
+                            <th>建立時間</th>
+                        </thead>
+                        <tbody>
+                            <!--使用vue foreach 查詢結果-->
+                            <tr v-for="(item,index) in result">
+                                <td>
+                                    <button class="btn btn-primary" v-bind:accessKey="index" v-on:click='btnEditHandler'>編輯</button>
+                                    <button class="btn btn-danger" v-bind:accessKey="index" v-on:click="btnDelete">刪除</button>
+                                </td>
+                                <td>{[item.AccountName]}</td>
+                                <td>{[item.Balance]}</td>
+                                <td>{[item.Currency]}</td>
+                                <td>{[item.Description]}</td>
+                                <td>{[item.CreatedAt]}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!--新增對話盒區塊-->
+                <div id="NewDialog" title="帳戶資料新增" style="display: none;">
+                    <div>
+                        <label>帳戶名稱</label>
+                        <div><input id="txtNewAccountName" type="text"></div>
+                        <label>帳戶餘額</label>
+                        <div><input id="txtNewBalance" type="number"></div>
+                        <label>帳戶貨幣</label>
+                        <div>
+                            <select id="txtNewCurrency">
+                                {% for item in currency %}
+                                <!--使用for loop內建順序屬性loop.index-->
+                                <option value="{{item}}">{{descr[loop.index-1]}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <label>帳戶描述</label>
+                        <div>
+                            <textarea id="txtNewDescription" name="mytext" rows="4" cols="30" required></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!--編輯對話盒區塊-->
+                <div id="EditDialog" title="帳戶資料修改" style="display: none;">
+                    <div>
+                        <label>帳戶名稱</label>
+                        <div><input id="txtAccountName" type="text"></div>
+                        <label>帳戶餘額</label>
+                        <div><input id="txtBalance" type="number"></div>
+                        <label>帳戶貨幣</label>
+                        <div>
+                            <select id="txtCurrency">
+                                {% for item in currency %}
+                                <!--使用for loop內建順序屬性loop.index-->
+                                <option value="{{item}}">{{descr[loop.index-1]}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <label>帳戶描述</label>
+                        <div>
+                            <textarea id="txtDescription" name="mytext" rows="4" cols="30" required></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </fieldset>
+    </section>
+</body>
+
+<script>
+    
+  </script>
+
+<script>
+    $(document).ready(
+        function(e){
+            liff.init({ // LIFF 初始化
+                liffId: '2003756205-0AAX4krZ', // Use own liffId
+            }).then(() => { // 初始化成功
+                // liff登入
+                if (!liff.isLoggedIn()) {
+                    liff.login();                    
+                }
+                else {
+                    liff.getProfile()
+                    .then(profile => {
+                        // 獲取成功，處理用戶資訊
+                        app.userID = profile.userId; // 用戶 LINE ID
+                        app.userName = profile.displayName; // 用戶姓名
+                        app.pictureUrl = profile.pictureUrl; // 用戶頭像 URL
+                        const statusMessage = profile.statusMessage; // 用戶狀態消息
+
+                        // 在這裡處理用戶資訊，例如顯示在界面上
+                        console.log('User ID:', app.userID);
+                        console.log('Display Name:', app.userName);
+                        console.log('Picture URL:', app.pictureUrl);
+                        console.log('Status Message:', statusMessage);
+
+                        let usersLoginUrl = '/api/v1/users/qry'
+                        axios.post(usersLoginUrl,{
+                            userID:app.userID,
+                            userName:app.userName                            
+                        })
+                        .then(()=>{
+                            app.Update()
+                        })
+                    })
+                    .catch(error => {
+                        // 獲取失敗，處理錯誤
+                        console.error('Failed to get user profile:', error);
+                    });
+                }
+            }).catch((error) => {
+                // 初始化失敗，處理錯誤
+                console.error('LIFF initialization failed:', error);
+            });
+
+            // 原版註冊登入
+            // let count=getCookie('user_id');
+            // console.log(count);
+            // if (count){
+            //     app.Update();
+            // }
+            // else{
+            //     Swal.fire(
+            //         //JS物件
+            //         {
+            //             title:'訊息',
+            //             text:'未登入帳號',
+            //             icon:'error'
+            //         }
+            //     )
+            //     .then(
+            //         (result)=>{
+            //             setTimeout("location.href='../login/form'",100);
+            //         }
+            //     )
+            // }
+            
+        }
+    );
+
+
+    //將value傳至指定對話框
+    function setValue(value, inputId) {
+        // console.log(value);
+        document.getElementById(inputId).value = value;
+    }
+
+    //取得cookie值
+    // function getCookie(name){
+    //     const value = `; ${document.cookie}`;
+    //     const parts = value.split(`; ${name}=`);
+    //     if (parts.length === 2) return parts.pop().split(';').shift();
+    // }
+
+    //清除cookie  
+    // function clearCookie(name) {  
+    //     var exp = new Date();
+    //     exp.setTime(exp.getTime() - 1);
+    //     var cval = getCookie(name);
+    //     if (cval != null) {
+    //         document.cookie = name + "=" + cval + ";expires=" + exp.toGMTString() + ";path=/";
+    //     }
+    //     Swal.fire({
+    //         title: "Accounting",
+    //         text: "登出成功!",
+    //         icon: "success"
+    //     }).then(
+    //         (result)=>{
+    //             setTimeout("location.href='../login/form'",100);
+    //         }
+    //     )
+    // }
+
+    // liff登出
+    function liffLogOut(){
+        if (liff.isLoggedIn()) {
+            liff.logout();
+            window.location.reload();
+        }
+    }
+
+</script>
+
+<script>
+
+    
+    //物件模組
+    var dataModel={
+        userID : '',
+        userName : '',
+        pictureUrl : '',
+        nowAccount:'',
+        log:{AccountID:'',CategoryID:'',Amount:'',Description:'',Type:'0'},//記帳用
+        account:{AccountID:'',AccountName:'',Balance:'',Currency:'',Description:''},//帳戶新增編輯刪除用
+        accountID : [],//帳戶ID列表
+        accountName : [],//帳戶name列表
+        accountBalance : [],//帳戶餘額列表
+        result:[], //帳戶查詢回應值
+        Result:[], //記帳查詢回應值
+        isShow:false,
+        chartData:[],
+        monthChartData:[]
+    }
+
+    //事件模組
+    var functions={
+
+        //記帳 選帳戶
+        btnChoAccount:function(e){
+            let index=e.target.accessKey;
+            let account=app.result[index]
+            // console.log(account.AccountName)
+
+            app.log.AccountID=account.AccountID
+            app.nowAccount=account.AccountName
+        },
+
+        // 將ajax的請求方式修改為axios的方式來測試手機網頁的請求效果
+        // 資料更新 axios版
+        Update:function(){
+            // 重新繪製圖表前，先消除上個圖表重新建立
+            $('#Chart1').remove();
+            $('#ChartDiv1').append('<canvas id="Chart1"></canvas>'); 
+
+            $('#Chart2').remove();
+            $('#ChartDiv2').append('<canvas id="Chart2"></canvas>');
+
+            $('#Chart3').remove();
+            $('#ChartDiv3').append('<canvas id="Chart3"></canvas>');
+
+            $('#Chart4').remove();
+            $('#ChartDiv4').append('<canvas id="Chart4"></canvas>');
+
+            //查詢帳戶服務位址
+            let qryService='/api/v1/accout/qry/'+app.userID+'/rawdata';
+            //進行非同步呼叫x
+            axios.get(qryService, {headers:{"ngrok-skip-browser-warning": "69420"}})
+            .then(
+                (resp)=>{
+                    let result = resp.data
+                    console.log(result)
+                    //指派給 Vue物件模組
+                    app.result=result;
+                    app.isShow=true;
+                    app.$forceUpdate();
+
+                    let accountID = []
+                    let accountName = []
+                    let accountBalance = []
+                    for (let index = 0; index < result.length; index++){
+                        let item = result[index];
+                        let ID = item.AccountID;
+                        let Name = item.AccountName;
+                        let Balance = item.Balance;
+                        // console.log(data)
+                        accountID.push(ID)
+                        accountName.push(Name)
+                        accountBalance.push(Balance)
+
+                    }
+
+                    app.accountID = accountID
+                    app.accountName = accountName
+                    app.accountBalance = accountBalance
+
+                    // 将对象数组转换为以逗号分隔的字符串
+                    let jsonString = accountID.map(obj => JSON.stringify(obj)).join(',');
+
+                    // 在字符串两端添加单引号
+                    let finalString = jsonString.replace(/\"/g, "'");
+                    // console.log(finalString)
+
+                    //查詢記帳服務位址
+                    let country=finalString
+                    let qryTranService='/api/v1/transactions/qry/'+ country +'/rawdata';
+                    axios.get(qryTranService, {headers:{"ngrok-skip-browser-warning": "69420"}})
+                    .then(
+                        (resp)=>{
+                            let result = resp.data
+                            console.log(result); //result就是data
+                            //指派給 Vue物件模組
+                            app.Result=result;
+                            app.isShow=true;
+
+                            let qryCategoryChartService='/api/v1/categorychart/qry/'+ country +'/rawdata';
+                            axios.get(qryCategoryChartService, {headers:{"ngrok-skip-browser-warning": "69420"}})
+                            .then(
+                                (resp)=>{
+                                    app.chartData=resp.data;
+                                    console.log(app.chartData);
+                                    let ctx1 = document.getElementById('Chart1');
+                                    let ctx2 = document.getElementById('Chart2');
+                                    let ctx4 = document.getElementById('Chart4');
+                                    let categoryData = JSON.parse('{{ category | tojson | safe }}');
+                                    // console.log(categoryData) 
+                                                                            
+                                
+                                    new Chart(ctx1, {
+                                    type: 'doughnut',
+                                    data: {
+                                        labels: Object.values(categoryData),
+                                        datasets: [{
+                                        label: '總額',
+                                        data: app.chartData[0],
+                                        borderWidth: 1
+                                        }]
+                                    },
+                                    options: {
+                                        // responsive: false, // 关闭自适应大小
+                                        // maintainAspectRatio: false, // 关闭宽高比维持
+                                        scales: {
+                                        y: {
+                                            beginAtZero: true
+                                        }
+                                        }
+                                    }
+                                    });
+
+                                    new Chart(ctx2, {
+                                    type: 'doughnut',
+                                    data: {
+                                        labels: Object.values(categoryData),
+                                        datasets: [{
+                                        label: '總額',
+                                        data: app.chartData[1],
+                                        borderWidth: 1
+                                        }]
+                                    },
+                                    options: {
+                                        // responsive: false, // 关闭自适应大小
+                                        // maintainAspectRatio: false, // 关闭宽高比维持
+                                        scales: {
+                                        y: {
+                                            beginAtZero: true
+                                        }
+                                        }
+                                    }
+                                    });
+                                    
+                                    new Chart(ctx4, {
+                                    type: 'doughnut',
+                                    data: {
+                                        labels: app.accountName,
+                                        datasets: [{
+                                        label: '額度',
+                                        data: app.accountBalance,
+                                        borderWidth: 1
+                                        }]
+                                    },
+                                    options: {
+                                        // responsive: false, // 关闭自适应大小
+                                        // maintainAspectRatio: false, // 关闭宽高比维持
+                                        scales: {
+                                        y: {
+                                            beginAtZero: true
+                                        }
+                                        }
+                                    }
+                                    });
+
+                                    let qryCategoryChartService='/api/v1/monthchart/qry/'+ country +'/rawdata';
+                                    axios.get(qryCategoryChartService, {headers:{"ngrok-skip-browser-warning": "69420"}})
+                                    .then(
+                                        (resp)=>{
+                                            app.monthChartData=resp.data;
+                                            console.log(app.monthChartData);
+                                            let ctx3 = document.getElementById('Chart3');
+                                            // console.log(monthData)                                                                                                           
+
+                                            new Chart(ctx3, {
+                                            type: 'line',
+                                            data: {
+                                                labels: app.monthChartData[0],
+                                                datasets: [{
+                                                label: '每月總額',
+                                                data: app.monthChartData[1],
+                                                borderWidth: 1
+                                                }]
+                                            },
+                                            options: {
+                                                // responsive: false, // 关闭自适应大小
+                                                // maintainAspectRatio: false, // 关闭宽高比维持
+                                                scales: {
+                                                y: {
+                                                    beginAtZero: true
+                                                }
+                                                }
+                                            }
+                                            });
+                                            app.$forceUpdate();
+
+                                        }
+                                    )
+                                    .catch(
+                                        (resp)=>{
+                                            app.chartData=resp.response.data;
+                                            console.log(app.chartData);
+                                        }
+                                    )
+                                }
+                            )
+                            .catch(
+                                (resp)=>{
+                                    app.chartData=resp.response.data
+                                    console.log(app.chartData);
+                                }
+                            )
+                        }
+                    )
+                    .catch(
+                        (resp)=>{
+                            let result = resp.response.data
+                            console.log(result);
+                            let msg=result.msg;
+                            //使用  SweetAlert2 對話盒
+                            Swal.fire(
+                                //JS物件
+                                {
+                                    title:'訊息',
+                                    text:msg,
+                                    icon:'info',
+                                    confirmButtonText:'確認'
+                                }
+                            );
+                        }
+                    )
+                }
+            )
+            .catch(
+                (resp)=>{
+                    let result = resp.response.data
+                    console.log(result);
+                    let msg=result.msg;
+                    //使用  SweetAlert2 對話盒
+                    Swal.fire(
+                        //JS物件
+                        {
+                            title:'訊息',
+                            text:'請先建立帳戶',
+                            icon:'info',
+                            confirmButtonText:'確認'
+                        }
+                    );
+                }
+            )         
+        },
+
+        //資料更新後執行   
+        // Update:function(){
+        //     let count=getCookie('user_id');
+        //     console.log(count);
+        //     if (count){
+
+        //         // 重新繪製圖表前，先消除上個圖表重新建立
+        //         $('#Chart1').remove();
+        //         $('#ChartDiv1').append('<canvas id="Chart1"></canvas>'); 
+
+        //         $('#Chart2').remove();
+        //         $('#ChartDiv2').append('<canvas id="Chart2"></canvas>');
+
+        //         $('#Chart3').remove();
+        //         $('#ChartDiv3').append('<canvas id="Chart3"></canvas>');
+
+        //         $('#Chart4').remove();
+        //         $('#ChartDiv4').append('<canvas id="Chart4"></canvas>');
+
+        //         //查詢帳戶服務位址
+        //         let qryService='/api/v1/accout/qry/'+count+'/rawdata';
+        //         //進行非同步呼叫x
+        //         $.ajax(
+        //             //settings 進行物件屬性設定
+        //             {
+        //                 url:qryService,
+        //                 type:'GET', //請求方法
+        //                 dataType:'json',
+        //                 success:function(result,status,xhr){
+        //                     console.log(result); //result就是data
+
+        //                     //指派給 Vue物件模組
+        //                     app.result=result;
+
+        //                     let accountID = []
+        //                     let accountName = []
+        //                     let accountBalance = []
+        //                     for (let index = 0; index < result.length; index++){
+        //                         let item = result[index];
+        //                         let ID = item.AccountID;
+        //                         let Name = item.AccountName;
+        //                         let Balance = item.Balance;
+        //                         // console.log(data)
+        //                         accountID.push(ID)
+        //                         accountName.push(Name)
+        //                         accountBalance.push(Balance)
+
+        //                     }
+
+        //                     app.accountID = accountID
+        //                     app.accountName = accountName
+        //                     app.accountBalance = accountBalance
+
+        //                     // 将对象数组转换为以逗号分隔的字符串
+        //                     let jsonString = accountID.map(obj => JSON.stringify(obj)).join(',');
+
+        //                     // 在字符串两端添加单引号
+        //                     let finalString = jsonString.replace(/\"/g, "'");
+        //                     // console.log(finalString)
+
+        //                     //查詢記帳服務位址
+        //                     let country=finalString
+        //                     let qryTranService='/api/v1/transactions/qry/'+ country +'/rawdata';
+        //                     // console.log(qryTranService)
+
+        //                     $.ajax(
+        //                         {
+        //                             url:qryTranService,
+        //                             type:'GET',
+        //                             dataType:'json',
+        //                             success:function(result,status,xhr){
+        //                                 // console.log(result); //result就是data
+        //                                 //指派給 Vue物件模組
+        //                                 app.Result=result;
+        //                                 console.log(app.Result);
+        //                                 app.isShow=true;
+
+        //                                 let qryCategoryChartService='/api/v1/categorychart/qry/'+ country +'/rawdata';
+        //                                 $.ajax(
+        //                                     {
+        //                                         url:qryCategoryChartService,
+        //                                         type:'GET',
+        //                                         dataType:'json',
+        //                                         success:function(result,status,xhr){
+        //                                             app.chartData=result;
+        //                                             console.log(app.chartData);
+        //                                             let ctx1 = document.getElementById('Chart1');
+        //                                             let ctx2 = document.getElementById('Chart2');
+        //                                             let ctx4 = document.getElementById('Chart4');
+        //                                             let categoryData = JSON.parse('{{ category | tojson | safe }}');
+        //                                             // console.log(categoryData) 
+                                                                                            
+                                                
+        //                                             new Chart(ctx1, {
+        //                                             type: 'doughnut',
+        //                                             data: {
+        //                                                 labels: Object.values(categoryData),
+        //                                                 datasets: [{
+        //                                                 label: '總額',
+        //                                                 data: app.chartData[0],
+        //                                                 borderWidth: 1
+        //                                                 }]
+        //                                             },
+        //                                             options: {
+        //                                                 // responsive: false, // 关闭自适应大小
+        //                                                 // maintainAspectRatio: false, // 关闭宽高比维持
+        //                                                 scales: {
+        //                                                 y: {
+        //                                                     beginAtZero: true
+        //                                                 }
+        //                                                 }
+        //                                             }
+        //                                             });
+
+        //                                             new Chart(ctx2, {
+        //                                             type: 'doughnut',
+        //                                             data: {
+        //                                                 labels: Object.values(categoryData),
+        //                                                 datasets: [{
+        //                                                 label: '總額',
+        //                                                 data: app.chartData[1],
+        //                                                 borderWidth: 1
+        //                                                 }]
+        //                                             },
+        //                                             options: {
+        //                                                 // responsive: false, // 关闭自适应大小
+        //                                                 // maintainAspectRatio: false, // 关闭宽高比维持
+        //                                                 scales: {
+        //                                                 y: {
+        //                                                     beginAtZero: true
+        //                                                 }
+        //                                                 }
+        //                                             }
+        //                                             });
+                                                    
+        //                                             new Chart(ctx4, {
+        //                                             type: 'doughnut',
+        //                                             data: {
+        //                                                 labels: app.accountName,
+        //                                                 datasets: [{
+        //                                                 label: '額度',
+        //                                                 data: app.accountBalance,
+        //                                                 borderWidth: 1
+        //                                                 }]
+        //                                             },
+        //                                             options: {
+        //                                                 // responsive: false, // 关闭自适应大小
+        //                                                 // maintainAspectRatio: false, // 关闭宽高比维持
+        //                                                 scales: {
+        //                                                 y: {
+        //                                                     beginAtZero: true
+        //                                                 }
+        //                                                 }
+        //                                             }
+        //                                             });
+
+        //                                             let qryCategoryChartService='/api/v1/monthchart/qry/'+ country +'/rawdata';
+        //                                             $.ajax(
+        //                                                 {
+        //                                                     url:qryCategoryChartService,
+        //                                                     type:'GET',
+        //                                                     dataType:'json',
+        //                                                     success:function(result,status,xhr){
+        //                                                         app.monthChartData=result;
+        //                                                         console.log(app.monthChartData);
+        //                                                         let ctx3 = document.getElementById('Chart3');
+        //                                                         // console.log(monthData)                                                                                                           
+
+        //                                                         new Chart(ctx3, {
+        //                                                         type: 'line',
+        //                                                         data: {
+        //                                                             labels: app.monthChartData[0],
+        //                                                             datasets: [{
+        //                                                             label: '每月總額',
+        //                                                             data: app.monthChartData[1],
+        //                                                             borderWidth: 1
+        //                                                             }]
+        //                                                         },
+        //                                                         options: {
+        //                                                             // responsive: false, // 关闭自适应大小
+        //                                                             // maintainAspectRatio: false, // 关闭宽高比维持
+        //                                                             scales: {
+        //                                                             y: {
+        //                                                                 beginAtZero: true
+        //                                                             }
+        //                                                             }
+        //                                                         }
+        //                                                         });
+        //                                                         app.$forceUpdate();
+        //                                                     },
+        //                                                     error:function(xhr,status,error){
+        //                                                         app.chartData=xhr.responseJSON;
+        //                                                         console.log(app.chartData);
+        //                                                     }
+        //                                                 }
+        //                                             );
+        //                                             app.$forceUpdate();
+        //                                         },
+        //                                         error:function(xhr,status,error){
+        //                                             app.chartData=xhr.responseJSON;
+        //                                             console.log(app.chartData);
+        //                                         }
+        //                                     }
+        //                                 );
+        //                                 app.$forceUpdate();
+        //                             },
+        //                             error:function(xhr,status,error){
+        //                                 console.log(xhr); //XMLHttpRequest物件
+        //                                 data=xhr.responseJSON;
+        //                                 console.log(data);
+        //                                 let msg=data.msg;
+        //                                 //使用  SweetAlert2 對話盒
+        //                                 Swal.fire(
+        //                                     //JS物件
+        //                                     {
+        //                                         title:'訊息',
+        //                                         text:msg,
+        //                                         icon:'error',
+        //                                         confirmButtonText:'確認'
+        //                                     }
+        //                                 );
+        //                             }
+        //                         }
+        //                     );
+
+        //                     //指派給 Vue物件模組
+        //                     app.result=result;
+        //                     app.isShow=true;
+        //                     app.$forceUpdate();
+        //                 },
+        //                 error:function(xhr,status,error){
+        //                     console.log(xhr); //XMLHttpRequest物件
+        //                     data=xhr.responseJSON;
+        //                     console.log(data);
+        //                     let msg=data.msg;
+        //                     //使用  SweetAlert2 對話盒
+        //                     Swal.fire(
+        //                         //JS物件
+        //                         {
+        //                             title:'訊息',
+        //                             text:msg,
+        //                             icon:'error',
+        //                             confirmButtonText:'確認'
+        //                         }
+        //                     );
+        //                 }
+        //             }
+                    
+        //         );
+        //     }
+        //     else{
+        //         Swal.fire(
+        //             //JS物件
+        //             {
+        //                 title:'訊息',
+        //                 text:'未登入帳號',
+        //                 icon:'error'
+        //             }
+        //         )
+        //         .then(
+        //             (result)=>{
+        //                 setTimeout("location.href='../login/form'",100);
+        //             }
+        //         )
+        //     }
+        // },
+
+        //記帳 新增
+        btnNewLog:function(){
+            console.log(app.log)
+            let newURL='../../api/v1/transactions/add'
+            if (app.log.AccountID === ''){
+                Swal.fire(
+                    //JS物件
+                    {
+                        title:'訊息',
+                        text:'請選擇帳戶',
+                        icon:'error'
+                    }
+                );
+            }
+            else if(app.log.CategoryID === ''){
+                Swal.fire(
+                    //JS物件
+                    {
+                        title:'訊息',
+                        text:'請選擇類別',
+                        icon:'error'
+                    }
+                );
+            }
+            else if(app.log.Amount === ''){
+                Swal.fire(
+                    //JS物件
+                    {
+                        title:'訊息',
+                        text:'請輸入金額',
+                        icon:'error'
+                    }
+                );
+            }
+            else{
+                $.ajax(
+                    {
+                        url:newURL,
+                        type:'POST',
+                        contentType: 'application/json',  // 設定請求內容類型為 JSON
+                        data: JSON.stringify(app.log),  // 將資料轉為 JSON 字串
+                        success:function(result){
+                            console.log(result)
+                            let msg=result.msg
+                            app.log.Amount=''
+                            app.log.Description=''
+                            app.Update()
+                            Swal.fire({
+                                position: "top-end",
+                                icon: "success",
+                                title: "訊息",
+                                text: msg,
+                                showConfirmButton: false,
+                                timer: 800
+                            });
+                        },
+                        error:function(xhr,status,error){
+                            console.log(xhr); //XMLHttpRequest物件
+                            data=xhr.responseJSON;
+                            console.log(data);
+                            let msg=data.message;
+                            //使用  SweetAlert2 對話盒
+                            Swal.fire(
+                                //JS物件
+                                {
+                                    title:'訊息',
+                                    text:msg,
+                                    icon:'error'
+                                }
+                            );
+                        }
+                    }
+                );
+            }
+        },
+
+        // QR code新增
+        btnQRcodeNewLog:function(){
+            // 启动扫描二维码功能
+            liff.scanCodeV2()
+                .then(result => {
+                    // 扫描成功，获取扫描结果
+                    const scannedCode = result.value; // 获取扫描到的二维码内容
+                    console.log('Scanned code:', scannedCode);
+                    
+                    // 在这里处理扫描结果，例如根据扫描结果执行相应的操作
+                    QRcodeURL = '../../api/v1/transactions/qrcodeadd'
+                    axios.post(QRcodeURL,{scannedCode:scannedCode})
+                })
+                .catch(error => {
+                    // 扫描二维码失败，处理错误
+                    console.error('Failed to scan code:', error);
+                });
+        },
+
+        // 記帳 語音新增 
+        btnAudioNewLog:function(){
+            // 获取音频文件
+            liff.getAudio()
+                .then(audio => {
+                    // 成功获取音频文件
+                    console.log('Audio file:', audio);
+                    
+                    // 在这里处理音频文件，例如播放或上传到服务器
+                    // 注意：您可以从 audio 对象中获取文件的相关信息，例如文件名、文件大小、文件格式等
+                    const audioUrl = audio.url; // 获取音频文件的 URL
+                    const audioFileName = audio.fileName; // 获取音频文件的文件名
+                    const audioFileSize = audio.fileSize; // 获取音频文件的文件大小（字节）
+                    const audioFileType = audio.fileType; // 获取音频文件的文件类型
+
+                    // 在这里处理音频文件，例如播放或上传到服务器
+                })
+                .catch(error => {
+                    // 获取音频文件失败，处理错误
+                    console.error('Failed to get audio file:', error);
+                });
+        },
+
+
+        //記帳 編輯
+        btnTranEditHandler:function(e){
+            //取得該按鈕accessley儲存的相對紀錄順序
+            let index=e.target.accessKey;
+            // console.log(index);
+            //透過該順序取出陣列物件(Vue Model)相對的帳戶物件
+            let transactions=app.Result[index]
+            //取出該物件的帳戶編號
+            let TransactionID=transactions.TransactionID;
+            let AccountID=transactions.AccountID;
+            let AccountName=transactions.AccountName;
+            let CategoryID=transactions.CategoryID;
+            let Amount=transactions.Amount;
+            let Description=transactions.Description;
+            let Type=transactions.Type;
+
+            console.log(AccountName)
+            // console.log(Type)
+
+            $('#TranEditDialog').dialog(
+                {
+                    
+                    title:'記帳編輯',
+                    //強佔式Modal/Modaless  
+                    modal: true,
+                    show: {
+                        duration: 300
+                    },
+                    open: function() {
+                        $('#txtTranAccountID').val(AccountID);
+                        $('#txtTranAccountName').val(AccountName);
+                        $('#txtTranCurrency').val(CategoryID);
+                        $('#txtTranAmount').val(Amount);
+                        $('#txtTranDescription').val(Description);
+                        // $('#txtTranType').val(Type);    
+                        let TypeGet = document.getElementById('txtTranType');
+                        TypeGet.checked = Type;
+                        // console.log(TypeGet.checked)
+                        
+                    },
+                    buttons: {
+                        "取消": function() {
+                            $( this ).dialog( "close" );
+                        },
+                        "編輯": function() {
+                            AccountID=$('#txtTranAccountID').val();
+                            CategoryID=$('#txtTranCurrency').val();
+                            Amount=$('#txtTranAmount').val();
+                            Description=$('#txtTranDescription').val();
+                            // Type=$('#txtTranAmount').checked;
+
+                            let TypeGet = document.getElementById('txtTranType');
+                            if (TypeGet.checked) {
+                                Type = true;
+                            } else {
+                                Type = false;
+                            }
+
+                            // console.log(Type)
+
+                            let reviseURL='../../api/v1/transactions/revise';
+                            //使用axios 採用Request method:DELETE
+                            axios.post(reviseURL,{
+                                AccountID:AccountID,
+                                CategoryID:CategoryID,
+                                Amount:Amount,
+                                Description:Description,
+                                Type:Type,
+                                TransactionID:TransactionID
+                                
+                            })
+                            .then(
+                                //success callback(Http status 2xx)
+                                (resp)=>{
+                                    console.log(resp);
+
+                                    app.Update()
+
+                                    //呈現對話盒
+                                    let message=resp.data.msg;
+                                    Swal.fire(
+                                        {
+                                            title:'訊息',
+                                            text:message,
+                                            icon:'info',
+                                            confirmButtonText:'確認'
+                                        }
+                                    ).then(
+                                        (result)=>{
+                                            if (result.isConfirmed){
+                                                // 重新整理畫面
+                                                //UI Re-Render
+                                                app.$forceUpdate();
+                                            }
+                                        }
+                                    );                      
+                                }
+                            )
+                            .catch(
+                                //status code 4xx or 5xx callback
+                                (resp)=>{
+                                    console.log(resp);
+                                    //呈現對話盒
+                                    let message=resp.response.data.msg;
+                                    Swal.fire(
+                                        {
+                                            title:'訊息',
+                                            text:message,
+                                            icon:'error'
+                                        }
+                                    );
+                                }
+                            )
+
+
+                            $( this ).dialog( "close" );
+                            // console.log('編輯後:' + app.account.AccountName);
+                        }
+                    }
+                }
+            );
+        },
+
+        //記帳 刪除
+        btnTranDelete:function(e){
+            //取得該按鈕accessley儲存的相對紀錄順序
+            let index=e.target.accessKey;
+            //透過該順序取出陣列物件(Vue Model)相對的帳戶物件
+            let transactions=app.Result[index]
+            //取出該物件的帳戶編號
+            let TransactionID=transactions.TransactionID;
+            let AccountID=transactions.AccountID;
+            //先啟動SweetAlert對話盒
+            Swal.fire(
+                {
+                    title:'刪除作業',
+                    text:'是否確定刪除?',
+                    icon:'question',
+                    confirmButtonText:'刪除',
+                    showCancelButton:true,
+                    cancelButtonText:'取消'
+                }
+
+            ).then((result)=>{
+                if (result.isConfirmed){
+                    //刪除作業
+                    //呼喚後端刪除客戶資料服務
+                    let deleteURL='../../api/v1/transactions/delete'
+                    //使用axios 採用Request method:DELETE
+                    axios.delete(deleteURL,{
+                        params:{
+                            TransactionID:TransactionID,
+                            AccountID:AccountID
+                        }
+                    })
+                    .then(
+                        //success callback(Http status 2xx)
+                        (resp)=>{
+                            console.log(resp);
+                            //前端UI同步移除相對記錄(客戶物件)
+                            //陣列移除指定位置開始 移除幾個
+                            app.Result.splice(index,1);
+                            app.Update()
+                            //UI Re-Render
+                            app.$forceUpdate();
+
+                            //呈現對話盒
+                            let message=resp.data.msg;
+                            Swal.fire(
+                                {
+                                    title:'訊息',
+                                    text:message,
+                                    icon:'info'
+                                }
+                            );
+                        }
+                    )
+                    .catch(
+                        //status code 4xx or 5xx callback
+                        (resp)=>{
+                            console.log(resp);
+                            //呈現對話盒
+                            let message=resp.response.data.msg;
+                            Swal.fire(
+                                {
+                                    title:'訊息',
+                                    text:message,
+                                    icon:'error'
+                                }
+                            );
+                        }
+                    )
+                }
+            });
+        },
+
+        // 新增帳戶資料
+        btnNewHandler:function(e){
+            $('#NewDialog').dialog(
+                {
+                    title:'新增帳戶',
+                    modal: true,
+                    show: {
+                        effect: "blind",
+                        duration: 300
+                    },
+                    buttons: {
+                        "取消": function() {
+                            $( this ).dialog( "close" );
+                        },
+                        "新增": function() {
+                            app.account.AccountName=$('#txtNewAccountName').val();
+                            app.account.Balance=$('#txtNewBalance').val();
+                            app.account.Currency=$('#txtNewCurrency').val();
+                            app.account.Description=$('#txtNewDescription').val();
+
+                            let newURL='../../api/v1/account/add';
+                            //使用axios 採用Request method:DELETE
+                            axios.post(newURL,{
+                                UserID:app.userID,
+                                AccountName:app.account.AccountName,
+                                Balance:app.account.Balance,
+                                Currency:app.account.Currency,
+                                Description:app.account.Description
+                                
+                            })
+                            .then(
+                                //success callback(Http status 2xx)
+                                (resp)=>{
+                                    console.log(resp);
+                                    app.Update()
+                                    //呈現對話盒
+                                    let message=resp.data.msg;
+                                    Swal.fire(
+                                        {
+                                            title:'訊息',
+                                            text:message,
+                                            icon:'info',
+                                            confirmButtonText:'確認'
+                                        }
+                                    ).then(
+                                        (result)=>{
+                                            if (result.isConfirmed){
+                                                // 重新整理畫面
+                                                //UI Re-Render
+                                                app.$forceUpdate();
+                                            }
+                                        }
+                                    );                      
+                                }
+                            )
+                            .catch(
+                                //status code 4xx or 5xx callback
+                                (resp)=>{
+                                    console.log(resp);
+                                    //呈現對話盒
+                                    let message=resp.response.data.msg;
+                                    Swal.fire(
+                                        {
+                                            title:'訊息',
+                                            text:message,
+                                            icon:'error'
+                                        }
+                                    );
+                                }
+                            )
+
+
+                            $( this ).dialog( "close" );
+                            console.log('新增帳戶:' + app.account.AccountName);
+                        }
+                    }                    
+                }
+            );            
+        },
+
+        //編輯帳戶資料
+        btnEditHandler:function(e){
+            //取得該按鈕accessley儲存的相對紀錄順序
+            let index=e.target.accessKey;
+            //透過該順序取出陣列物件(Vue Model)相對的帳戶物件
+            let account=app.result[index]
+            //取出該物件的帳戶編號
+            app.account.AccountID=account.AccountID
+            app.account.AccountName=account.AccountName
+            app.account.Balance=account.Balance
+            app.account.Currency=account.Currency
+            app.account.Description=account.Description
+
+            console.log(index)
+            console.log('目前選取資料:'+app.account.AccountName);
+
+            $('#EditDialog').dialog(
+                {
+                    
+                    title:'帳戶編輯',
+                    //強佔式Modal/Modaless  
+                    modal: true,
+                    show: {
+                        duration: 300
+                    },
+                    open: function() {
+                        $('#txtAccountName').val(app.account.AccountName);
+                        $('#txtBalance').val(app.account.Balance);
+                        $('#txtCurrency').val(app.account.Currency);
+                        $('#txtDescription').val(app.account.Description);
+                    },
+                    buttons: {
+                        "取消": function() {
+                            $( this ).dialog( "close" );
+                        },
+                        "編輯": function() {
+                            app.account.AccountName=$('#txtAccountName').val();
+                            app.account.Balance=$('#txtBalance').val();
+                            app.account.Currency=$('#txtCurrency').val();
+                            app.account.Description=$('#txtDescription').val();
+
+                            let reviseURL='../../api/v1/account/revise';
+                            //使用axios 採用Request method:DELETE
+                            axios.post(reviseURL,{
+                                AccountID:app.account.AccountID,
+                                AccountName:app.account.AccountName,
+                                Balance:app.account.Balance,
+                                Currency:app.account.Currency,
+                                Description:app.account.Description
+                                
+                            })
+                            .then(
+                                //success callback(Http status 2xx)
+                                (resp)=>{
+                                    console.log(resp);
+
+                                    app.Update()
+
+                                    //呈現對話盒
+                                    let message=resp.data.msg;
+                                    Swal.fire(
+                                        {
+                                            title:'訊息',
+                                            text:message,
+                                            icon:'info',
+                                            confirmButtonText:'確認'
+                                        }
+                                    ).then(
+                                        (result)=>{
+                                            if (result.isConfirmed){
+                                                // 重新整理畫面
+                                                //UI Re-Render
+                                                app.$forceUpdate();
+                                            }
+                                        }
+                                    );                      
+                                }
+                            )
+                            .catch(
+                                //status code 4xx or 5xx callback
+                                (resp)=>{
+                                    console.log(resp);
+                                    //呈現對話盒
+                                    let message=resp.response.data.msg;
+                                    Swal.fire(
+                                        {
+                                            title:'訊息',
+                                            text:message,
+                                            icon:'error'
+                                        }
+                                    );
+                                }
+                            )
+
+
+                            $( this ).dialog( "close" );
+                            console.log('編輯後:' + app.account.AccountName);
+                        }
+                    }
+                }
+            );
+        },
+        
+        //刪除客戶資料
+        btnDelete:function(e){
+            //取得該按鈕accessley儲存的相對紀錄順序
+            let index=e.target.accessKey;
+            //透過該順序取出陣列物件(Vue Model)相對的帳戶物件
+            let account=app.result[index]
+            //取出該物件的帳戶編號
+            let AccountID=account.AccountID;
+            let AccountName=account.AccountName;
+            console.log(AccountName);
+            //先啟動SweetAlert對話盒
+            Swal.fire(
+                {
+                    title:'刪除作業',
+                    text:'是否確定刪除?',
+                    icon:'question',
+                    confirmButtonText:'刪除',
+                    showCancelButton:true,
+                    cancelButtonText:'取消'
+                }
+
+            ).then((result)=>{
+                if (result.isConfirmed){
+                    //刪除作業
+                    //呼喚後端刪除客戶資料服務
+                    let deleteURL='../../api/v1/account/delete'
+                    //使用axios 採用Request method:DELETE
+                    axios.delete(deleteURL,{
+                        params:{
+                            AccountID:AccountID,
+                            AccountName:AccountName
+                        }
+                    })
+                    .then(
+                        //success callback(Http status 2xx)
+                        (resp)=>{
+                            console.log(resp);
+                            //前端UI同步移除相對記錄(客戶物件)
+                            //陣列移除指定位置開始 移除幾個
+                            app.result.splice(index,1);
+                            app.Update()
+                            //UI Re-Render
+                            app.$forceUpdate();
+
+                            //呈現對話盒
+                            let message=resp.data.msg;
+                            Swal.fire(
+                                {
+                                    title:'訊息',
+                                    text:message,
+                                    icon:'info'
+                                }
+                            );
+                        }
+                    )
+                    .catch(
+                        //status code 4xx or 5xx callback
+                        (resp)=>{
+                            console.log(resp);
+                            //呈現對話盒
+                            let message=resp.response.data.msg;
+                            Swal.fire(
+                                {
+                                    title:'訊息',
+                                    text:message,
+                                    icon:'error'
+                                }
+                            );
+                        }
+                    )
+                }
+            });
+        }
+    }    
+
+    //建構Vue物件
+    var app=new Vue(
+        {
+            delimiters:['{[',']}'], //換一下前端Vue Expression符號
+            data:dataModel,
+            methods:functions,
+            
+        }
+    );
+    //掛載
+    app.$mount('#app')
+
+    
+</script>
+</html>
