@@ -34,8 +34,28 @@ def replyMessage(replyToken,message, audioFile, duration):
     #呼叫reply message api
     requests.post(url=replyURL,data=json.dumps(msg),headers=myHeader)
 
+
+def readAudio(audioId, userId):
+    urlString=getContent %(audioId)
+    headers = {'Authorization':lineToken}
+    # print(audioGetUrl.format(audioId=audioId))
+
+    response = requests.get(urlString,headers=headers)
+    print(response.content)
+
+    # 检查请求是否成功
+    if response.status_code == 200:
+        # 获取文件内容
+        audio_content = response.content
+         # 设置保存文件的路径
+        save_path = "modules/static/audio/"+userId+".m4a"    
+
+        # 使用文件操作将字节数据写入到文件中
+        with open(save_path, "wb") as audio_file:
+            audio_file.write(audio_content)
+
 #讀取特定image id 圖檔
-def readImage(imageId):
+def readImage(imageId, userId):
     urlString=getContent %(imageId)
     print(urlString)
     #正式提出請求
@@ -44,7 +64,7 @@ def readImage(imageId):
     #進行串流讀取
     if response.status_code==200:
         #try with resource with 開啟 在區段(縮排結束) 會自動執行close
-        with open("c:/tools/sample.jpg", 'wb') as f:
+        with open("modules/static/img/"+userId+".jpg", 'wb') as f:
             f.write(response.content)   #response透過content 取回bytes class(bytes array)
         #auto close file 
         # VisionHeader = {"Content-Type":"application/octet-stream","Prediction-Key":PredictionKey}

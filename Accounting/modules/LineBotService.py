@@ -4,9 +4,10 @@ from modules import app, sysConfig  #引用Flask物件 公用變數
 #引用flask模組代表一個前端的請求資訊request local proxy
 from flask import request, make_response  #具有與前端一個獨立的交談層session
 from modules.DBUtility import createConnection, query, update
-from modules.LineUtility import replyMessage, readImage, sendPushTextMessage
+from modules.LineUtility import replyMessage, readAudio, readImage, sendPushTextMessage
 from modules.AccoutService import AccoutQry
 from modules.OpenaiService import speechToText
+from modules.QRcodeUtility import QRcodeRead
 from pydub import AudioSegment
 import io
 #Openai 模組
@@ -19,7 +20,7 @@ import os
 replyUrl = 'https://api.line.me/v2/bot/message/reply'  #回覆訊息api 
 ProfileUrl = 'https://api.line.me/v2/bot/profile/'  #用戶訊息api
 # audioGetUrl = 'https://api-data.line.me/v2/bot/message/{audioId}/content/transcoding'
-audioGetUrl = 'https://api-data.line.me/v2/bot/message/{audioId}/content'
+
 token = 'Bearer hPwnQTfdo7tFucJTWyK6b/uWRCRPF9s8DB4O01xBvm6dd/p6ifisbHsv4h06cQ5jknfSNH7F47ZeX7zhAFr3TEivwGgcmfRKqyzxSMnMKTPao3kAboBn/WLpUFHkHYiHIdfFvGebcJ/FlXxYZ5ftAwdB04t89/1O/w1cDnyilFU='
 
 IssueUrl = 'https://b180-182-233-241-127.ngrok-free.app'
@@ -48,7 +49,7 @@ def lintBotProcess():
 
     Account = AccoutQry(curUser["userId"]).get_json()
     category = sysConfig['Category']
-    systemmessage = f'請把傳送內容 轉為json 項目有AccountID,CategoryID,Amount,Description,Type 依照輸入的帳戶名稱挑選AccountID={Account} 無符合選 Description = 常用 的AccountID, CategoryID={category}'
+    systemmessage = f'請把內容 轉為json 項目有AccountID,CategoryID,Amount,Description,Type 依照輸入的帳戶名稱挑選AccountID={Account} 無符合選 Description = 常用 的AccountID, CategoryID={category}'
 
 
     #取出Line系統id(user id)
@@ -160,83 +161,49 @@ def lintBotProcess():
                 'Content-Type': 'application/json'
             }
 
-            requests.post(url=IssueUrl+'/api/v1/transactions/add',data=json.dumps(result),headers=headers)
+            response = requests.post(url=IssueUrl+'/api/v1/transactions/add',data=json.dumps(result),headers=headers)
             if response.status_code == 200:
                 sendPushTextMessage(curUser["userId"],"新增記帳成功")
             else:
                 sendPushTextMessage(curUser["userId"],"新增記帳失敗")
 
         elif message['type'] == 'audio':
-            print(message)
             audioId = message['id']
-            headers = {'Authorization':token}
-            # print(audioGetUrl.format(audioId=audioId))
+            save_path = "modules/static/audio/"+userId+".m4a" 
 
-            response = requests.get(audioGetUrl.format(audioId=audioId),headers=headers)
-            # print(response.content)
-            
-            print(type(response))
-            # 检查请求是否成功
+            readAudio(audioId, userId)
+
+            # 語音轉文字
+            messageText = speechToText(save_path)
+
+            # 辨識句意成記帳格式
+            result = pushTranTogpt(systemmessage,messageText+'Type支出=0，收入=1')
+            result = eval(result)
+            # print(result)
+            # print(type(result))
+
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            # 呼叫記帳服務
+            response = requests.post(url=IssueUrl+'/api/v1/transactions/add',data=json.dumps(result),headers=headers)
             if response.status_code == 200:
-                # 获取文件内容
-                audio_content = response.content
-
-                # 设置保存文件的路径
-                save_path = "modules/static/audio/"+curUser["userId"]+".m4a"    
-
-                # 使用文件操作将字节数据写入到文件中
-                with open(save_path, "wb") as audio_file:
-                    audio_file.write(audio_content)
-
-                # 語音轉文字
-                messageText = speechToText(save_path)
-
-                # 辨識句意成記帳格式
-                result = pushTranTogpt(systemmessage,messageText+'Type支出=0，收入=1')
-                result = eval(result)
-                # print(result)
-                # print(type(result))
-
-                headers = {
-                    'Content-Type': 'application/json'
-                }
-                # 呼叫記帳服務
-                response = requests.post(url=IssueUrl+'/api/v1/transactions/add',data=json.dumps(result),headers=headers)
-                if response.status_code == 200:
-                    sendPushTextMessage(curUser["userId"],"新增記帳成功")
-                else:
-                    sendPushTextMessage(curUser["userId"],"新增記帳失敗")
-
-
-
+                sendPushTextMessage(curUser["userId"],"新增記帳成功")
+            else:
+                sendPushTextMessage(curUser["userId"],"新增記帳失敗")
 
         elif message['type'] == 'image':
             #處理圖片
             #取出圖片id
             imageId=message['id']
+            save_path = "modules/static/img/"+userId+".jpg" 
             #借助getFile api結合這一個id圖取圖片檔
-            byte = readImage(imageId)
-            #呼喚AI Custom Vision(上傳圖片bytes 進行分析)
-            #將byte物件內容 轉換成byte array
-            buffer=bytearray(byte)
-            # print(buffer)  
-            #呼喚Custom Vision AI 採用傳送圖片方式進行解析
-            #定義Http Header Content-Type and prediction-key
-            VisionHeader = {"Content-Type":"application/octet-stream","Prediction-Key":PredictionKey}
-            airsponse = requests.post(url='../api/v1/transactions/qrcodeadd',data=buffer)
-            preData = airsponse.json()
-            #處理推測資料 取出最高分 推測tagName
-            predictions=preData['predictions'] #list
-            #lambda expression 採用 走訪 逐一傳遞進來dict 進行sort key設定
-            #排序方式預設生冪 透過sorted()第三個參數採用反向 變成降冪排序
-            sortPred=sorted(predictions,key=lambda p:p['probability'], reverse = True)
-            #print(sortPred)  
-            #取出第一筆 Top歸測結果
-            result=sortPred[0]
-            #取出分數
-            rate=result['probability'] #float
-            tagName=result['tagName']
-            # replyMessage(replyToken,f'分析結果:{tagName} 分數:{rate}')
+            byte = readImage(imageId, userId)
+
+            # 呼叫open CV模組辨識QRcode
+            qrcodeText = QRcodeRead(save_path)
+            print(qrcodeText)
+            
 
     elif data['type']=='beacon':
         print("beacon 打入...") 
