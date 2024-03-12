@@ -6,7 +6,7 @@ import json
 import os
 
 #定義常數(open ai token)
-openaiToken='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'
+openaiToken='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'
 
 client = OpenAI(api_key=openaiToken)
 
@@ -21,7 +21,7 @@ def pushTranTogpt(system,token):
     )
     # print(type(completion))
     # print(completion)
-    # print(completion.choices[0].message.content)
+    print(completion.choices[0].message.content)
     return completion.choices[0].message.content
 
 def speechToText(audio_path):  
