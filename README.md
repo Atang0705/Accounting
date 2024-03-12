@@ -2,4 +2,4 @@
 <h3>PPT網址<br>
 https://docs.google.com/presentation/d/1FDQmHIJEibS_vc5PHttAP5lteGtK2dHAwI6-PwGDq9w/edit?usp=sharing<hr>
 此為參加勞動部產業新尖兵計劃所製作之專題，為提供使用者更為多元化的記帳方式所設計。<br>
-IMG_5694.PNG
+[IMG_5694.PNG](https://github.com/Atang0705/Accounting/blob/0dee2832ad4b60f8b746ce44f7d2c9860883590f/IMG_5694.PNG)https://github.com/Atang0705/Accounting/blob/0dee2832ad4b60f8b746ce44f7d2c9860883590f/IMG_5694.PNG
