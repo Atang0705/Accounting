@@ -6,7 +6,7 @@ import json
 import os
 
 #定義常數(open ai token)
-openaiToken='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'
+openaiToken=''
 
 client = OpenAI(api_key=openaiToken)
 
